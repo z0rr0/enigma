@@ -15,7 +15,6 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
-	"strings"
 	"time"
 )
 
@@ -86,7 +85,7 @@ func main() {
 				r.RemoteAddr,
 			)
 		}()
-		host, err := cfg.GetIP(r)
+		host, err := cfg.UKNOWN(r)  // TODO: fix it
 		if err != nil {
 			loggerInfo.Println(err)
 			code = http.StatusInternalServerError

@@ -3,7 +3,32 @@
 # Enigma
 A service to share private using web.
 
+### Build
+
+```bash
+make install
+```
+
+For docker container
+
+```bash
+make docker 
+```
+
 ## Development
+
+### Run
+
+```bash
+# start
+make start
+
+# stop
+make stop
+
+# restart
+make restart
+```
 
 ### Docker usage for debugging
 
