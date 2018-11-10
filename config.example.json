@@ -1,0 +1,15 @@
+{
+  "host": "localhost",
+  "port": 18080,
+  "timeout": 30,
+  "redis": {
+    "host": "127.0.0.1",
+    "port": 6379,
+    "network": "tcp",
+    "db": 1,
+    "password": "foobared",
+    "timeout": 10,
+    "indlecon": 1,
+    "maxcon": 4
+  }
+}
