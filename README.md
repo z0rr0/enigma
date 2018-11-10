@@ -3,6 +3,22 @@
 # Enigma
 A service to share private using web.
 
+## Development
+
+### Docker usage for debugging
+
+Redis server (for example custom persistent storage is "/tmp/redis")
+
+```bash
+docker run --name redis -v /tmp/redis:/data -p 6379:6379 -d redis:alpine redis-server --appendonly yes
+```
+
+Redis client
+
+```bash
+docker run -it --link redis:redis --rm redis:alpine redis-cli -h redis -p 6379
+```
+
 ## License
 
 This source code is governed by a MIT license that can be found in the [LICENSE](https://github.com/z0rr0/enigma/blob/master/LICENSE) file.
