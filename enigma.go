@@ -2,20 +2,22 @@
 // All rights reserved. Use of this source code is governed
 // by a MIT-style license that can be found in the LICENSE file.
 
-//Package conf implements methods setup configuration settings.
+// Package conf implements methods setup configuration settings.
 package main
 
 import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/z0rr0/enigma/conf"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"runtime"
 	"time"
+
+	"github.com/z0rr0/enigma/conf"
+	"github.com/z0rr0/enigma/web"
 )
 
 const (
@@ -76,25 +78,30 @@ func main() {
 	}
 	loggerInfo.Printf("\n%v\nlisten addr: %v\n", versionInfo, srv.Addr)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		var err error
 		start, code := time.Now(), http.StatusOK
 		defer func() {
 			loggerInfo.Printf("%-5v %v\t%-12v\t%v",
 				r.Method,
 				code,
 				time.Since(start),
-				r.RemoteAddr,
+				r.URL.String(),
 			)
 		}()
-		host, err := cfg.UKNOWN(r)  // TODO: fix it
+		if r.URL.String() == "/" {
+			err = web.Index(w, r)
+		} else {
+			err = web.Index(w, r) // TODO: has handler
+		}
 		if err != nil {
-			loggerInfo.Println(err)
-			code = http.StatusInternalServerError
-			http.Error(w, "ERROR", code)
+			e := err.(*web.HTTPError)
+			loggerInfo.Println(e.Msg)
+			http.Error(w, "ERROR", e.Code)
 			return
 		}
 		// main info
-		fmt.Fprintf(w, "IP: %v\nProto: %v\nMethod: %v\nURI: %v\n",
-			host, r.Proto, r.Method, r.RequestURI)
+		//fmt.Fprintf(w, "IP: %v\nProto: %v\nMethod: %v\nURI: %v\n",
+		//	host, r.Proto, r.Method, r.RequestURI)
 	})
 
 	idleConnsClosed := make(chan struct{})

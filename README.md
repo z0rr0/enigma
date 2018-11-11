@@ -37,7 +37,7 @@ make restart
 Redis server (for example custom persistent storage is "/tmp/redis")
 
 ```bash
-docker run --name redis -v /tmp/redis:/data -p 6379:6379 -d redis:alpine redis-server --appendonly yes
+docker run --name redis -v /tmp/redis:/data -v $PWD/docker:/usr/local/etc/redis -p 6379:6379 -d redis:alpine redis-server /usr/local/etc/redis/redis.conf
 ```
 
 Redis client

@@ -2,6 +2,7 @@
   "host": "localhost",
   "port": 18080,
   "timeout": 30,
+  "key": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
   "redis": {
     "host": "127.0.0.1",
     "port": 6379,

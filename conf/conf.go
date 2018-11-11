@@ -2,10 +2,11 @@
 // All rights reserved. Use of this source code is governed
 // by a MIT-style license that can be found in the LICENSE file.
 
-//Package conf implements methods setup configuration settings.
+// Package conf implements methods setup configuration settings.
 package conf
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -34,12 +35,14 @@ type rediscfg struct {
 
 // Cfg is rates' configuration settings.
 type Cfg struct {
-	Host               string   `json:"host"`
-	Port               uint     `json:"port"`
-	Timeout            int64    `json:"timeout"`
-	Redis              rediscfg `json:"redis"`
-	timeout            time.Duration
-	pool               *redis.Pool
+	Host      string   `json:"host"`
+	Port      uint     `json:"port"`
+	Timeout   int64    `json:"timeout"`
+	Redis     rediscfg `json:"redis"`
+	Key       string   `json:"key"`
+	CipherKey []byte
+	timeout   time.Duration
+	pool      *redis.Pool
 }
 
 // isValid checks the settings are valid.
@@ -61,6 +64,11 @@ func (c *Cfg) isValid() error {
 	if c.Redis.Db < 0 {
 		return errors.New("invalid db number")
 	}
+	b, err := hex.DecodeString(c.Key)
+	if err != nil {
+		return errors.New("can not decode secret key")
+	}
+	c.CipherKey = b
 	return c.setRedisPool()
 }
 
