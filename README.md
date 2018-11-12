@@ -3,9 +3,20 @@
 # Enigma
 A service to share private info using web.
 
-Send data + settings (optional password + TTL + number of sharing) -> Get link -> Send link.
+1. Send data + settings (optional password + TTL + number of sharing)
+1. Get a link
+1. Share a link
 
-### Build
+## Build
+
+
+Dependencies:
+
+```
+got get github.com/gomodule/redigo/redis
+```
+
+Check and build
 
 ```bash
 make install
