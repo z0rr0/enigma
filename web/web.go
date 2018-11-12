@@ -9,47 +9,43 @@
 package web
 
 import (
-	"fmt"
 	"net/http"
+
+	"github.com/z0rr0/enigma/conf"
 )
 
-const (
-	indexPage = `
-<!DOCTYPE html>
-<html>
-	<head>
-		<title>Enigma</title>
-	</head>
-<body>
-	<h1>Enigma</h1>
-</body>
-</html>	`
-	resultPage = `
-<!DOCTYPE html>
-<html>
-	<head>
-		<title>Enigma</title>
-	</head>
-<body>
-	<h1>Enigma</h1>
-</body>
-</html>`
-)
-
-type HTTPError struct {
-	Code int
-	Msg  string
+// ErrorData is a struct for error handling.
+type ErrorData struct {
+	Title string
+	Msg   string
 }
 
-func (e *HTTPError) Error() string {
-	return e.Msg
+func Error(w http.ResponseWriter, cfg conf.Cfg, code int) {
+	var title, msg string
+	w.WriteHeader(code)
+
+	tpl := cfg.Templates["error"]
+	switch code {
+	case http.StatusNotFound:
+		title, msg = "Not found", "Page not found"
+	case http.StatusBadRequest:
+		title, msg = "Error", "Bad request"
+	default:
+		title, msg = "Error", "Sorry, it is an error"
+	}
+	data := &ErrorData{title, msg}
+	tpl.Execute(w, data)
 }
 
 // Index is a base HTTP handler. POST request creates new item.
-func Index(w http.ResponseWriter, r *http.Request) error {
+// Return value is HTTP status code.
+func Index(w http.ResponseWriter, r *http.Request, cfg *conf.Cfg) int {
 	if r.Method == "POST" {
-		return &HTTPError{200, "OK"}
+		tpl := cfg.Templates["index"]
+		tpl.Execute(w, nil)
+		return http.StatusOK
 	}
-	fmt.Fprint(w, indexPage)
-	return nil
+	tpl := cfg.Templates["index"]
+	tpl.Execute(w, nil)
+	return http.StatusOK
 }

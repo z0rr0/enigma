@@ -78,7 +78,6 @@ func main() {
 	}
 	loggerInfo.Printf("\n%v\nlisten addr: %v\n", versionInfo, srv.Addr)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		var err error
 		start, code := time.Now(), http.StatusOK
 		defer func() {
 			loggerInfo.Printf("%-5v %v\t%-12v\t%v",
@@ -88,20 +87,11 @@ func main() {
 				r.URL.String(),
 			)
 		}()
-		if r.URL.String() == "/" {
-			err = web.Index(w, r)
+		if r.URL.Path == "/" {
+			code = web.Index(w, r, cfg)
 		} else {
-			err = web.Index(w, r) // TODO: has handler
+			code = web.Index(w, r, cfg) // TODO: has handler
 		}
-		if err != nil {
-			e := err.(*web.HTTPError)
-			loggerInfo.Println(e.Msg)
-			http.Error(w, "ERROR", e.Code)
-			return
-		}
-		// main info
-		//fmt.Fprintf(w, "IP: %v\nProto: %v\nMethod: %v\nURI: %v\n",
-		//	host, r.Proto, r.Method, r.RequestURI)
 	})
 
 	idleConnsClosed := make(chan struct{})

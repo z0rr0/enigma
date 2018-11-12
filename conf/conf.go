@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"net"
 	"os"
@@ -18,6 +19,7 @@ import (
 	"time"
 
 	"github.com/gomodule/redigo/redis"
+	"github.com/z0rr0/enigma/page"
 )
 
 // rediscfg is configuration redis settings.
@@ -41,6 +43,7 @@ type Cfg struct {
 	Redis     rediscfg `json:"redis"`
 	Key       string   `json:"key"`
 	CipherKey []byte
+	Templates map[string]*template.Template
 	timeout   time.Duration
 	pool      *redis.Pool
 }
@@ -56,6 +59,10 @@ func (c *Cfg) isValid() error {
 	c.timeout = time.Duration(c.Timeout) * time.Second
 	if c.Redis.Timeout < 1 {
 		return errors.New("invalid redis timeout value")
+	}
+	err := c.loadTemplates()
+	if err != nil {
+		return err
 	}
 	c.Redis.timeout = time.Duration(c.Redis.Timeout) * time.Second
 	if (c.Redis.IndleCon < 1) || (c.Redis.MaxCon < 1) {
@@ -157,4 +164,25 @@ func (c *Cfg) closeRedisPool() error {
 // HandleTimeout is service timeout.
 func (c *Cfg) HandleTimeout() time.Duration {
 	return c.timeout
+}
+
+// loadTemplates loads HTML templates to memory.
+func (c *Cfg) loadTemplates() error {
+	if len(c.Templates) > 0 {
+		return errors.New("tempalate is already loaded")
+	}
+	pages := map[string]string{
+		"index": page.PageIndex,
+		"error": page.PageError,
+	}
+	c.Templates = make(map[string]*template.Template, len(pages))
+
+	for name, content := range pages {
+		tpl, err := template.New(name).Parse(content)
+		if err != nil {
+			return err
+		}
+		c.Templates[name] = tpl
+	}
+	return nil
 }
