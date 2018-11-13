@@ -5,7 +5,7 @@ BIN=$(GOPATH)/bin
 VERSION=`bash version.sh`
 MAIN=github.com/z0rr0/$(NAME)
 SOURCEDIR=src/$(MAIN)
-CONTAINER=container_build.sh
+CONTAINER=docker/build.sh
 DOCKER_TAG=z0rr0/$(NAME)
 CONFIG=config.example.json
 
@@ -40,11 +40,11 @@ test: lint
 
 docker: lint
 	bash $(CONTAINER)
-	docker build -t $(DOCKER_TAG) .
+	docker build -t $(DOCKER_TAG) -f docker/Dockerfile .
 
 docker-no-cache: lint
 	bash $(CONTAINER)
-	docker build --no-cache -t $(DOCKER_TAG) .
+	docker build --no-cache -t $(DOCKER_TAG) -f docker/Dockerfile
 
 start: install
 	@echo "  >  $(PROJECTNAME)"
