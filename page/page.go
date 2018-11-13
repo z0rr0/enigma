@@ -6,8 +6,8 @@
 package page
 
 const (
-	// PageIndex is index page HTML template.
-	PageIndex = `
+	// Index is index page HTML template.
+	Index = `
 <!DOCTYPE html>
 <html>
 	<head>
@@ -31,8 +31,8 @@ const (
 	</body>
 </html>
 `
-	// PageError is error page HTML template.
-	PageError = `
+	// Error is error page HTML template.
+	Error = `
 <!DOCTYPE html>
 <html>
 	<head>
@@ -45,8 +45,8 @@ const (
 	</body>
 </html>
 `
-	// PageResul is HTML template for link sharing.
-	PageResul = `
+	// Result is HTML template for link sharing.
+	Result = `
 <!DOCTYPE html>
 <html>
 	<head>
@@ -59,8 +59,8 @@ const (
 	</body>
 </html>
 `
-	// PageRead is HTML template for data decyption.
-	PageRead = `
+	// Read is HTML template for data decryption.
+	Read = `
 <!DOCTYPE html>
 <html>
 	<head>
@@ -73,11 +73,12 @@ const (
 			Password: <input type="password" name="password" placeholder="optional">
 			<input type="submit" value="Get">
 		</form>
+		{{if .Err}}<i>{{.Msg}}</i>{{end}}
 	</body>
 </html>
 `
-	// PageContent is HTML template with decrypted user's data.
-	PageContent = `
+	// Content is HTML template with decrypted user's data.
+	Content = `
 <!DOCTYPE html>
 <html>
 	<head>
@@ -86,7 +87,7 @@ const (
 	</head>
 	<body>
 		<h1><a href="/" title="Enigma">Enigma</a></h1>
-		<p>{{.Content}}</p>
+		<pre>{{.Content}}</pre>
 	</body>
 </html>
 `

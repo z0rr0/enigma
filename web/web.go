@@ -9,10 +9,10 @@
 package web
 
 import (
-	"github.com/gomodule/redigo/redis"
 	"net/http"
 	"strings"
 
+	"github.com/gomodule/redigo/redis"
 	"github.com/z0rr0/enigma/conf"
 	"github.com/z0rr0/enigma/db"
 )
@@ -21,6 +21,12 @@ import (
 type ErrorData struct {
 	Title string
 	Msg   string
+}
+
+// CheckPassword is data for failed password check.
+type CheckPassword struct {
+	Err bool
+	Msg string
 }
 
 // Error sets error page. It returns code value.
@@ -70,8 +76,12 @@ func get(w http.ResponseWriter, r *http.Request, item *db.Item, c redis.Conn, cf
 		return Error(w, cfg, http.StatusInternalServerError), err
 	}
 	if !ok {
-		// TODO: retry
-		return Error(w, cfg, http.StatusNotFound), nil
+		tpl := cfg.Templates["read"]
+		err = tpl.Execute(w, CheckPassword{true, "Failed password"})
+		if err != nil {
+			return Error(w, cfg, http.StatusInternalServerError), err
+		}
+		return http.StatusOK, nil
 	}
 	err = item.Read(c, cfg.CipherKey)
 	if err != nil {
