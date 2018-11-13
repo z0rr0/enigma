@@ -33,14 +33,11 @@ make docker
 ### Run
 
 ```bash
-# start
 make start
 
-# stop
-make stop
-
-# restart
 make restart
+
+make stop
 ```
 
 ### Docker usage for debugging
