@@ -26,6 +26,10 @@ lint: install
 	golint $(MAIN)/db
 	go vet $(MAIN)/conf
 	golint $(MAIN)/conf
+	go vet $(MAIN)/web
+	golint $(MAIN)/web
+	go vet $(MAIN)/page
+	golint $(MAIN)/page
 
 test: lint
 	@-cp $(GOPATH)/$(SOURCEDIR)/$(CONFIG) /tmp/

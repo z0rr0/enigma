@@ -186,9 +186,11 @@ func (c *Cfg) loadTemplates() error {
 		return errors.New("tempalate is already loaded")
 	}
 	pages := map[string]string{
-		"index":  page.PageIndex,
-		"error":  page.PageError,
-		"result": page.PageResul,
+		"index":   page.PageIndex,
+		"error":   page.PageError,
+		"result":  page.PageResul,
+		"read":    page.PageRead,
+		"content": page.PageContent,
 	}
 	c.Templates = make(map[string]*template.Template, len(pages))
 

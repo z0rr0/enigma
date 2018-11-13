@@ -92,7 +92,7 @@ func main() {
 		if r.URL.Path == "/" {
 			code, err = web.Index(w, r, cfg)
 		} else {
-			code, err = web.Index(w, r, cfg) // TODO: has handler
+			code, err = web.Read(w, r, cfg)
 		}
 		if err != nil {
 			loggerError.Println(err)

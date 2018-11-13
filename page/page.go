@@ -2,10 +2,11 @@
 // All rights reserved. Use of this source code is governed
 // by a MIT-style license that can be found in the LICENSE file.
 
-// Package html contains HTML text templates.
+// Package page contains HTML text templates.
 package page
 
 const (
+	// PageIndex is index page HTML template.
 	PageIndex = `
 <!DOCTYPE html>
 <html>
@@ -30,6 +31,7 @@ const (
 	</body>
 </html>
 `
+	// PageError is error page HTML template.
 	PageError = `
 <!DOCTYPE html>
 <html>
@@ -37,11 +39,13 @@ const (
 		<meta charset=utf-8>
 		<title>Enigma - {{ .Title }}</title>
 	</head>
-<body>
-	<h1>{{ .Msg }}</h1>
-</body>
+	<body>
+		<h1><a href="/" title="Enigma">Enigma</a></h1>
+		<h4>{{ .Msg }}</h4>
+	</body>
 </html>
 `
+	// PageResul is HTML template for link sharing.
 	PageResul = `
 <!DOCTYPE html>
 <html>
@@ -50,10 +54,39 @@ const (
 		<title>Enigma</title>
 	</head>
 	<body>
-		<h1>Enigma</h1>
+		<h1><a href="/" title="Enigma">Enigma</a></h1>
 		<strong><a href="{{ .URL }}">{{ .URL }}</a></strong>
-		<hr>
-		<a href="/" title="Create new">create new message</a>
+	</body>
+</html>
+`
+	// PageRead is HTML template for data decyption.
+	PageRead = `
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset=utf-8>
+		<title>Enigma</title>
+	</head>
+	<body>
+		<h1><a href="/" title="Enigma">Enigma</a></h1>
+		<form method="POST">
+			Password: <input type="password" name="password" placeholder="optional">
+			<input type="submit" value="Get">
+		</form>
+	</body>
+</html>
+`
+	// PageContent is HTML template with decrypted user's data.
+	PageContent = `
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset=utf-8>
+		<title>Enigma</title>
+	</head>
+	<body>
+		<h1><a href="/" title="Enigma">Enigma</a></h1>
+		<p>{{.Content}}</p>
 	</body>
 </html>
 `

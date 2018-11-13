@@ -8,6 +8,7 @@ package db
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha512"
 	"encoding/hex"
@@ -107,6 +108,9 @@ func (item *Item) encrypt(skey []byte) error {
 	if len(skey) == 0 {
 		return errors.New("empty item key for encyption")
 	}
+	if item.Content == "" {
+		return errors.New("empty plaintext")
+	}
 	key := item.cipherKey(skey)
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -122,6 +126,99 @@ func (item *Item) encrypt(skey []byte) error {
 	stream.XORKeyStream(ciphertext[aes.BlockSize:], plaintext)
 	item.eContent = hex.EncodeToString(ciphertext)
 	return nil
+}
+
+func (item *Item) decrypt(skey []byte) error {
+	if item.eContent == "" {
+		return errors.New("empty ciphertext")
+	}
+	ciphertext, err := hex.DecodeString(item.eContent)
+	if err != nil {
+		return err
+	}
+	if len(ciphertext) < aes.BlockSize {
+		return errors.New("invalid cipher block length")
+	}
+	key := item.cipherKey(skey)
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return errors.New("new cipher creation")
+	}
+	iv := ciphertext[:aes.BlockSize]
+	ciphertext = ciphertext[aes.BlockSize:]
+	stream := cipher.NewCFBDecrypter(block, iv)
+	stream.XORKeyStream(ciphertext, ciphertext)
+
+	item.Content = string(ciphertext)
+	return nil
+}
+
+// Read gets data from database. Expected it is called after Exists and CheckPassword.
+func (item *Item) Read(c redis.Conn, skey []byte) error {
+	c.Send("MULTI")
+	c.Send("HGET", item.Key, fieldContent)
+	c.Send("HINCRBY", item.Key, fielTimes, -1)
+	r, err := c.Do("EXEC")
+	if err != nil {
+		return err
+	}
+	result, ok := r.([]interface{})
+	if !ok {
+		return errors.New("failed multi read result")
+	}
+	if len(result) != 2 {
+		return errors.New("unexpected multi item result")
+	}
+
+	content, err := redis.String(result[0], nil)
+	if err != nil {
+		return fmt.Errorf("failed multi read 'content': %v", err)
+	}
+	item.eContent = content
+
+	times, err := redis.Int(result[1], nil)
+	if err != nil {
+		return fmt.Errorf("failed multi read 'times': %v", err)
+	}
+	item.Times = times
+
+	err = item.decrypt(skey)
+	if err != nil {
+		return err
+	}
+	// delete item if no times for new requests
+	if item.Times < 1 {
+		_, err = redis.Bool(c.Do("DEL", item.Key))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Exists returns true if item exists in database.
+func (item *Item) Exists(c redis.Conn) (bool, error) {
+	exists, err := redis.Bool(c.Do("HEXISTS", item.Key, fieldContent))
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
+// CheckPassword checks that password is correct.
+func (item *Item) CheckPassword(c redis.Conn) (bool, error) {
+	var err error
+	if item.hPassword == "" {
+		err = item.hashPassword()
+		if err != nil {
+			return false, err
+		}
+	}
+	h, err := redis.String(c.Do("HGET", item.Key, fieldPassword))
+	if err != nil {
+		return false, err
+	}
+	return hmac.Equal([]byte(item.hPassword), []byte(h)), nil
 }
 
 // hashPassword calculates and sets password hash for item.
