@@ -21,8 +21,8 @@ type ErrorData struct {
 	Msg   string
 }
 
-// Error sets error page.
-func Error(w http.ResponseWriter, cfg *conf.Cfg, code int) {
+// Error sets error page. It returns code value.
+func Error(w http.ResponseWriter, cfg *conf.Cfg, code int) int {
 	var title, msg string
 	w.WriteHeader(code)
 
@@ -37,24 +37,21 @@ func Error(w http.ResponseWriter, cfg *conf.Cfg, code int) {
 	}
 	data := &ErrorData{title, msg}
 	tpl.Execute(w, data)
+	return code
 }
 
+// create handles new item creation.
 func create(w http.ResponseWriter, r *http.Request, cfg *conf.Cfg) (int, error) {
-	var code int
 	item, err := db.New(r, cfg)
 	if err != nil {
-		code = http.StatusBadRequest
-		Error(w, cfg, code)
-		return code, err
+		return Error(w, cfg, http.StatusBadRequest), err
 	}
 	err = item.Save(cfg.Connection(), cfg.CipherKey)
 	if err != nil {
-		code = http.StatusInternalServerError
-		Error(w, cfg, code)
-		return code, err
+		return Error(w, cfg, http.StatusInternalServerError), err
 	}
 	tpl := cfg.Templates["result"]
-	tpl.Execute(w, map[string]string{"URL": item.Key})
+	tpl.Execute(w, map[string]string{"URL": item.GetURL(r, cfg.Secure).String()})
 	return http.StatusOK, err
 }
 

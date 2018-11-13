@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/gomodule/redigo/redis"
@@ -62,11 +63,25 @@ func (item *Item) Save(c redis.Conn, skey []byte) error {
 	c.Send("HSET", item.Key, fieldPassword, item.hPassword)
 	c.Send("HSET", item.Key, fielTimes, item.Times)
 	c.Send("EXPIRE", item.Key, item.TTL)
-	_, err := c.Do("EXEC")
+	_, err = c.Do("EXEC")
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+// GetURL return item's URL.
+func (item *Item) GetURL(r *http.Request, secure bool) *url.URL {
+	// r.URL.Scheme is blank, so use hint from settings
+	scheme := "http"
+	if secure {
+		scheme = "https"
+	}
+	return &url.URL{
+		Scheme: scheme,
+		Host:   r.Host,
+		Path:   item.Key,
+	}
 }
 
 func (item *Item) cipherKey(skey []byte) []byte {

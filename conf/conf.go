@@ -46,6 +46,7 @@ type Cfg struct {
 	Host      string   `json:"host"`
 	Port      uint     `json:"port"`
 	Timeout   int64    `json:"timeout"`
+	Secure    bool     `json:"secure"`
 	Redis     rediscfg `json:"redis"`
 	Key       string   `json:"key"`
 	Settings  settings `json:"settings"`
