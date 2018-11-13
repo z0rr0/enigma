@@ -200,3 +200,8 @@ func (c *Cfg) loadTemplates() error {
 	}
 	return nil
 }
+
+// Connection return new database connection.
+func (c *Cfg) Connection() redis.Conn {
+	return c.pool.Get()
+}

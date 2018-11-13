@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"syscall"
 	"time"
 
 	"github.com/z0rr0/enigma/conf"
@@ -101,7 +102,7 @@ func main() {
 	idleConnsClosed := make(chan struct{})
 	go func() {
 		sigint := make(chan os.Signal, 1)
-		signal.Notify(sigint, os.Interrupt)
+		signal.Notify(sigint, os.Interrupt, os.Signal(syscall.SIGTERM))
 		<-sigint
 
 		if err := srv.Shutdown(context.Background()); err != nil {
