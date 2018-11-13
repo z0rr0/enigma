@@ -78,6 +78,7 @@ func main() {
 	}
 	loggerInfo.Printf("\n%v\nlisten addr: %v\n", versionInfo, srv.Addr)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		var err error
 		start, code := time.Now(), http.StatusOK
 		defer func() {
 			loggerInfo.Printf("%-5v %v\t%-12v\t%v",
@@ -88,9 +89,12 @@ func main() {
 			)
 		}()
 		if r.URL.Path == "/" {
-			code = web.Index(w, r, cfg)
+			code, err = web.Index(w, r, cfg)
 		} else {
-			code = web.Index(w, r, cfg) // TODO: has handler
+			code, err = web.Index(w, r, cfg) // TODO: has handler
+		}
+		if err != nil {
+			loggerError.Println(err)
 		}
 	})
 

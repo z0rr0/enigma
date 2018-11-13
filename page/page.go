@@ -16,14 +16,14 @@ const (
 	<body>
 		<h1>Enigma</h1>
 		<form method="POST">
-			<textarea name="content" cols="80" rows="8" placeholder="Your secret text"></textarea><br>
-			TTL: <select name="ttl">
+			<textarea name="content" cols="80" rows="8" placeholder="Your secret text" required></textarea><br>
+			TTL: <select name="ttl" required>
 				<option value='600'>10 minutes</option>
 				<option value='3600'>a hour</option>
 				<option value='86400'>a day</option>
 				<option value='604800'>a week</option>
 			</select>
-			times: <input type="number" name="times" min="1" max="1000" value="1">
+			times: <input type="number" name="times" min="1" max="1000" value="1" required>
 			password: <input type="password" name="password" placeholder="optional">
 			<input type="submit" value="Send">
 		</form>

@@ -35,6 +35,12 @@ type rediscfg struct {
 	timeout  time.Duration
 }
 
+// settings is app settings.
+type settings struct {
+	TTL   int `json:"ttl"`
+	Times int `json:"times"`
+}
+
 // Cfg is rates' configuration settings.
 type Cfg struct {
 	Host      string   `json:"host"`
@@ -42,6 +48,7 @@ type Cfg struct {
 	Timeout   int64    `json:"timeout"`
 	Redis     rediscfg `json:"redis"`
 	Key       string   `json:"key"`
+	Settings  settings `json:"settings"`
 	CipherKey []byte
 	Templates map[string]*template.Template
 	timeout   time.Duration
@@ -55,6 +62,12 @@ func (c *Cfg) isValid() error {
 	}
 	if c.Port < 1 {
 		return errors.New("port should be positive")
+	}
+	if c.Settings.TTL < 1 {
+		return errors.New("ttl setting should be positive")
+	}
+	if c.Settings.Times < 1 {
+		return errors.New("times setting should be positive")
 	}
 	c.timeout = time.Duration(c.Timeout) * time.Second
 	if c.Redis.Timeout < 1 {

@@ -12,5 +12,9 @@
     "timeout": 10,
     "indlecon": 1,
     "maxcon": 4
+  },
+  "settings": {
+    "ttl": 604800,
+    "times": 1000
   }
 }
