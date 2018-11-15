@@ -33,7 +33,7 @@ lint: install
 
 test: lint
 	@-cp $(GOPATH)/$(SOURCEDIR)/$(CONFIG) /tmp/
-	go test -race -v -cover -coverprofile=conf_coverage.out -trace conf_trace.out $(MAIN)/conf
+	go test -race -v -cover -coverprofile=conf_coverage.out -trace conf_trace.out $(MAIN)/page
 	# go tool cover -html=coverage.out
 	# go tool trace ratest.test trace.out
 	# go test -race -v -cover -coverprofile=coverage.out -trace trace.out $(MAIN)
