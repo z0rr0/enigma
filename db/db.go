@@ -64,9 +64,25 @@ func (item *Item) Save(c redis.Conn, skey []byte) error {
 	c.Send("HSET", item.Key, fieldPassword, item.hPassword)
 	c.Send("HSET", item.Key, fielTimes, item.Times)
 	c.Send("EXPIRE", item.Key, item.TTL)
-	_, err = c.Do("EXEC")
+	r, err := c.Do("EXEC")
 	if err != nil {
 		return err
+	}
+	result, ok := r.([]interface{})
+	if !ok {
+		return errors.New("failed multi read result convertion")
+	}
+	if len(result) != 4 { // 4 operations: 3 hset + expire
+		return errors.New("unexpected multi item result")
+	}
+	for i, v := range result {
+		ok, err = redis.Bool(v, nil)
+		if err != nil {
+			return fmt.Errorf("failed operation=%v bool convertion", i)
+		}
+		if !ok {
+			return fmt.Errorf("failed operation=%v result", i)
+		}
 	}
 	return nil
 }
