@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	// KeyLen is number of bytes for random db key.
+	// KeyLen is a number of bytes for random db key.
 	KeyLen = 64
 
 	fieldContent  = "content"
@@ -87,7 +87,7 @@ func (item *Item) Save(c redis.Conn, skey []byte) error {
 	return nil
 }
 
-// GetURL return item's URL.
+// GetURL returns item's URL.
 func (item *Item) GetURL(r *http.Request, secure bool) *url.URL {
 	// r.URL.Scheme is blank, so use hint from settings
 	scheme := "http"
@@ -101,6 +101,7 @@ func (item *Item) GetURL(r *http.Request, secure bool) *url.URL {
 	}
 }
 
+// cipherKey returns a key for user's data encryption/decryption.
 func (item *Item) cipherKey(skey []byte) []byte {
 	if item.Password == "" {
 		return skey
@@ -144,6 +145,7 @@ func (item *Item) encrypt(skey []byte) error {
 	return nil
 }
 
+// decrypt decrypts user's data and send it to the item.
 func (item *Item) decrypt(skey []byte) error {
 	if item.eContent == "" {
 		return errors.New("empty ciphertext")
@@ -185,13 +187,13 @@ func (item *Item) Read(c redis.Conn, skey []byte) error {
 	if len(result) != 2 {
 		return errors.New("unexpected multi item result")
 	}
-
+	// check content convertion to string
 	content, err := redis.String(result[0], nil)
 	if err != nil {
 		return fmt.Errorf("failed multi read 'content': %v", err)
 	}
 	item.eContent = content
-
+	// check increment result
 	times, err := redis.Int(result[1], nil)
 	if err != nil {
 		return fmt.Errorf("failed multi read 'times': %v", err)
@@ -202,7 +204,7 @@ func (item *Item) Read(c redis.Conn, skey []byte) error {
 	if err != nil {
 		return err
 	}
-	// delete item if no times for new requests
+	// delete item from db if no times for new requests
 	if item.Times < 1 {
 		_, err = redis.Bool(c.Do("DEL", item.Key))
 		if err != nil {
@@ -251,7 +253,7 @@ func (item *Item) hashPassword() error {
 	return nil
 }
 
-// generateKey generates a random key
+// generateKey generates unique random key for an item.
 func generateKey(c redis.Conn) (string, error) {
 	var (
 		key string
@@ -274,7 +276,7 @@ func generateKey(c redis.Conn) (string, error) {
 	return key, nil
 }
 
-// getKey return a radnom key.
+// getKey returns string radnom key.
 func getKey() (string, error) {
 	var b [KeyLen]byte
 	_, err := rand.Read(b[:])
@@ -284,7 +286,7 @@ func getKey() (string, error) {
 	return hex.EncodeToString(b[:]), nil
 }
 
-// validateRange converts value to integer and check that it is in a range [1; max].
+// validateRange converts value to integer and checks that it is in a range [1; max].
 func validateRange(value, field string, max int) (int, error) {
 	n, err := strconv.Atoi(value)
 	if err != nil {
@@ -296,7 +298,7 @@ func validateRange(value, field string, max int) (int, error) {
 	return n, nil
 }
 
-// New checks POST form data anb return new item for saving.
+// New checks POST form data anb returns new item for saving.
 func New(r *http.Request, cfg *conf.Cfg) (*Item, error) {
 	// text content
 	content := r.PostFormValue("content")

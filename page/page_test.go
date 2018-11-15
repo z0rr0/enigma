@@ -14,8 +14,6 @@ func TestTemplates(t *testing.T) {
 		"read":    Read,
 		"content": Content,
 	}
-
-
 	for name, p := range pages {
 		tpl, err := template.New(name).Parse(p)
 		if err != nil {
