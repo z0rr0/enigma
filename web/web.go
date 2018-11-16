@@ -50,7 +50,7 @@ func Error(w http.ResponseWriter, cfg *conf.Cfg, code int) int {
 
 // create handles new item creation.
 func create(w http.ResponseWriter, r *http.Request, cfg *conf.Cfg) (int, error) {
-	item, err := db.New(r, cfg)
+	item, err := db.New(r, cfg.Settings.TTL, cfg.Settings.Times)
 	if err != nil {
 		return Error(w, cfg, http.StatusBadRequest), err
 	}

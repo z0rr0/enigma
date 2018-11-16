@@ -19,21 +19,22 @@ import (
 	"time"
 
 	"github.com/gomodule/redigo/redis"
+	"github.com/z0rr0/enigma/db"
 	"github.com/z0rr0/enigma/page"
 )
 
-// rediscfg is configuration redis settings.
-type rediscfg struct {
-	Host     string `json:"host"`
-	Port     uint   `json:"port"`
-	Network  string `json:"network"`
-	Db       int    `json:"db"`
-	Timeout  int64  `json:"timeout"`
-	Password string `json:"password"`
-	IndleCon int    `json:"indlecon"`
-	MaxCon   int    `json:"maxcon"`
-	timeout  time.Duration
-}
+//// rediscfg is configuration redis settings.
+//type rediscfg struct {
+//	Host     string `json:"host"`
+//	Port     uint   `json:"port"`
+//	Network  string `json:"network"`
+//	Db       int    `json:"db"`
+//	Timeout  int64  `json:"timeout"`
+//	Password string `json:"password"`
+//	IndleCon int    `json:"indlecon"`
+//	MaxCon   int    `json:"maxcon"`
+//	timeout  time.Duration
+//}
 
 // settings is app settings.
 type settings struct {
@@ -41,13 +42,13 @@ type settings struct {
 	Times int `json:"times"`
 }
 
-// Cfg is rates' configuration settings.
+// Cfg is configuration settings.
 type Cfg struct {
 	Host      string   `json:"host"`
 	Port      uint     `json:"port"`
 	Timeout   int64    `json:"timeout"`
 	Secure    bool     `json:"secure"`
-	Redis     rediscfg `json:"redis"`
+	Redis     *db.Cfg  `json:"redis"`
 	Key       string   `json:"key"`
 	Settings  settings `json:"settings"`
 	CipherKey []byte
@@ -71,26 +72,22 @@ func (c *Cfg) isValid() error {
 		return errors.New("times setting should be positive")
 	}
 	c.timeout = time.Duration(c.Timeout) * time.Second
-	if c.Redis.Timeout < 1 {
-		return errors.New("invalid redis timeout value")
-	}
+
 	err := c.loadTemplates()
 	if err != nil {
 		return err
-	}
-	c.Redis.timeout = time.Duration(c.Redis.Timeout) * time.Second
-	if (c.Redis.IndleCon < 1) || (c.Redis.MaxCon < 1) {
-		return errors.New("invalid redis connections settings")
-	}
-	if c.Redis.Db < 0 {
-		return errors.New("invalid db number")
 	}
 	b, err := hex.DecodeString(c.Key)
 	if err != nil {
 		return errors.New("can not decode secret key")
 	}
 	c.CipherKey = b
-	return c.setRedisPool()
+	pool, err := db.GetDbPool(c.Redis)
+	if err != nil {
+		return err
+	}
+	c.pool = pool
+	return nil
 }
 
 // New returns new configuration.
@@ -127,44 +124,6 @@ func (c *Cfg) Close() error {
 // Addr returns service's net address.
 func (c *Cfg) Addr() string {
 	return net.JoinHostPort(c.Host, fmt.Sprint(c.Port))
-}
-
-// RedisAddr returns redis service's net address.
-func (c *Cfg) RedisAddr() string {
-	return net.JoinHostPort(c.Redis.Host, fmt.Sprint(c.Redis.Port))
-}
-
-// setRedisPool sets redis connections pool and checks it.
-func (c *Cfg) setRedisPool() error {
-	pool := &redis.Pool{
-		MaxIdle:     c.Redis.IndleCon,
-		MaxActive:   c.Redis.MaxCon,
-		IdleTimeout: c.Redis.timeout,
-		Wait:        true,
-		Dial: func() (redis.Conn, error) {
-			return redis.Dial(
-				c.Redis.Network,
-				c.RedisAddr(),
-				redis.DialConnectTimeout(c.Redis.timeout),
-				redis.DialDatabase(c.Redis.Db),
-				redis.DialPassword(c.Redis.Password),
-			)
-		},
-		TestOnBorrow: func(c redis.Conn, t time.Time) error {
-			if time.Since(t) < time.Minute {
-				return nil
-			}
-			_, err := c.Do("PING")
-			return err
-		},
-	}
-	conn := pool.Get()
-	_, err := conn.Do("PING")
-	if err != nil {
-		return err
-	}
-	c.pool = pool
-	return conn.Close()
 }
 
 // closeRedisPool releases redis pool.

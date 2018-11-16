@@ -15,12 +15,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/gomodule/redigo/redis"
-	"github.com/z0rr0/enigma/conf"
 )
 
 const (
@@ -41,6 +42,70 @@ type Item struct {
 	Key       string
 	eContent  string
 	hPassword string
+}
+
+// Cfg is configuration redis settings.
+type Cfg struct {
+	Host     string `json:"host"`
+	Port     uint   `json:"port"`
+	Network  string `json:"network"`
+	Db       int    `json:"db"`
+	Timeout  int64  `json:"timeout"`
+	Password string `json:"password"`
+	IndleCon int    `json:"indlecon"`
+	MaxCon   int    `json:"maxcon"`
+	timeout  time.Duration
+}
+
+// GetDbPool creates new Redis db connections pool.
+func GetDbPool(c *Cfg) (*redis.Pool, error) {
+	if c.Timeout < 1 {
+		return nil, errors.New("invalid redis timeout value")
+	}
+	c.timeout = time.Duration(c.Timeout) * time.Second
+	if (c.IndleCon < 1) || (c.MaxCon < 1) {
+		return nil, errors.New("invalid redis connections settings")
+	}
+	if c.Db < 0 {
+		return nil, errors.New("invalid db number")
+	}
+	pool := &redis.Pool{
+		MaxIdle:     c.IndleCon,
+		MaxActive:   c.MaxCon,
+		IdleTimeout: c.timeout,
+		Wait:        true,
+		Dial: func() (redis.Conn, error) {
+			return redis.Dial(
+				c.Network,
+				c.RedisAddr(),
+				redis.DialConnectTimeout(c.timeout),
+				redis.DialDatabase(c.Db),
+				redis.DialPassword(c.Password),
+			)
+		},
+		TestOnBorrow: func(c redis.Conn, t time.Time) error {
+			if time.Since(t) < time.Minute {
+				return nil
+			}
+			_, err := c.Do("PING")
+			return err
+		},
+	}
+	conn := pool.Get()
+	_, err := conn.Do("PING")
+	if err != nil {
+		return nil, err
+	}
+	err = conn.Close()
+	if err != nil {
+		return nil, err
+	}
+	return pool, nil
+}
+
+// RedisAddr returns redis service's net address.
+func (c *Cfg) RedisAddr() string {
+	return net.JoinHostPort(c.Host, fmt.Sprint(c.Port))
 }
 
 // Save saves the item to database.
@@ -299,7 +364,7 @@ func validateRange(value, field string, max int) (int, error) {
 }
 
 // New checks POST form data anb returns new item for saving.
-func New(r *http.Request, cfg *conf.Cfg) (*Item, error) {
+func New(r *http.Request, ttl, times int) (*Item, error) {
 	// text content
 	content := r.PostFormValue("content")
 	if content == "" {
@@ -310,7 +375,7 @@ func New(r *http.Request, cfg *conf.Cfg) (*Item, error) {
 	if value == "" {
 		return nil, errors.New("required field ttl")
 	}
-	ttl, err := validateRange(value, "ttl", cfg.Settings.TTL)
+	ttl, err := validateRange(value, "ttl", ttl)
 	if err != nil {
 		return nil, err
 	}
@@ -319,7 +384,7 @@ func New(r *http.Request, cfg *conf.Cfg) (*Item, error) {
 	if value == "" {
 		return nil, errors.New("required field times")
 	}
-	times, err := validateRange(value, "times", cfg.Settings.Times)
+	attempts, err := validateRange(value, "times", times)
 	if err != nil {
 		return nil, err
 	}
@@ -328,7 +393,7 @@ func New(r *http.Request, cfg *conf.Cfg) (*Item, error) {
 	item := &Item{
 		Content:  content,
 		TTL:      ttl,
-		Times:    times,
+		Times:    attempts,
 		Password: password,
 	}
 	return item, nil
