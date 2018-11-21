@@ -66,8 +66,12 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	defer cfg.Close()
-
+	defer func() {
+		err := cfg.Close()
+		if err != nil {
+			loggerError.Println("failed connection close after stop")
+		}
+	}()
 	timeout := cfg.HandleTimeout()
 	srv := &http.Server{
 		Addr:           cfg.Addr(),

@@ -9,12 +9,21 @@
 package web
 
 import (
+	"fmt"
+	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/gomodule/redigo/redis"
 	"github.com/z0rr0/enigma/conf"
 	"github.com/z0rr0/enigma/db"
+)
+
+var (
+	// internal logger
+	logger = log.New(os.Stderr, fmt.Sprintln("critical error"),
+		log.Ldate|log.Ltime|log.Lshortfile)
 )
 
 // ErrorData is a struct for error handling.
@@ -44,7 +53,11 @@ func Error(w http.ResponseWriter, cfg *conf.Cfg, code int) int {
 		title, msg = "Error", "Sorry, it is an error"
 	}
 	data := &ErrorData{title, msg}
-	tpl.Execute(w, data)
+	err := tpl.Execute(w, data)
+	if err != nil {
+		logger.Println("error-template execute failed")
+		return http.StatusInternalServerError
+	}
 	return code
 }
 
@@ -55,7 +68,12 @@ func create(w http.ResponseWriter, r *http.Request, cfg *conf.Cfg) (int, error) 
 		return Error(w, cfg, http.StatusBadRequest), err
 	}
 	conn := cfg.Connection()
-	defer conn.Close()
+	defer func() {
+		err := conn.Close()
+		if err != nil {
+			logger.Println("failed connection close after creation")
+		}
+	}()
 	err = item.Save(conn, cfg.CipherKey)
 	if err != nil {
 		return Error(w, cfg, http.StatusInternalServerError), err
@@ -102,11 +120,14 @@ func Index(w http.ResponseWriter, r *http.Request, cfg *conf.Cfg) (int, error) {
 		return create(w, r, cfg)
 	}
 	tpl := cfg.Templates["index"]
-	tpl.Execute(w, nil)
+	err := tpl.Execute(w, nil)
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
 	return http.StatusOK, nil
 }
 
-// Read returns a page with descrypted user's data.
+// Read returns a page with decrypted user's data.
 func Read(w http.ResponseWriter, r *http.Request, cfg *conf.Cfg) (int, error) {
 	key := strings.Trim(r.RequestURI, "/ ")
 	if len(key) != db.KeyLen*2 {
@@ -115,8 +136,12 @@ func Read(w http.ResponseWriter, r *http.Request, cfg *conf.Cfg) (int, error) {
 
 	item := &db.Item{Key: key}
 	conn := cfg.Connection()
-	defer conn.Close()
-
+	defer func() {
+		err := conn.Close()
+		if err != nil {
+			logger.Println("failed connection close after reading")
+		}
+	}()
 	// check items exists
 	exists, err := item.Exists(conn)
 	if err != nil {
@@ -130,6 +155,9 @@ func Read(w http.ResponseWriter, r *http.Request, cfg *conf.Cfg) (int, error) {
 		return get(w, r, item, conn, cfg)
 	}
 	tpl := cfg.Templates["read"]
-	tpl.Execute(w, nil)
+	err = tpl.Execute(w, nil)
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
 	return http.StatusOK, nil
 }

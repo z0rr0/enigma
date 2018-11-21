@@ -30,7 +30,7 @@ const (
 
 	fieldContent  = "content"
 	fieldPassword = "password"
-	fielTimes     = "times"
+	fieldTimes    = "times"
 )
 
 // Item is data for new saving.
@@ -124,11 +124,26 @@ func (item *Item) Save(c redis.Conn, skey []byte) error {
 	if err != nil {
 		return err
 	}
-	c.Send("MULTI")
-	c.Send("HSET", item.Key, fieldContent, item.eContent)
-	c.Send("HSET", item.Key, fieldPassword, item.hPassword)
-	c.Send("HSET", item.Key, fielTimes, item.Times)
-	c.Send("EXPIRE", item.Key, item.TTL)
+	err = c.Send("MULTI")
+	if err != nil {
+		return err
+	}
+	err = c.Send("HSET", item.Key, fieldContent, item.eContent)
+	if err != nil {
+		return err
+	}
+	err = c.Send("HSET", item.Key, fieldPassword, item.hPassword)
+	if err != nil {
+		return err
+	}
+	err = c.Send("HSET", item.Key, fieldTimes, item.Times)
+	if err != nil {
+		return err
+	}
+	err = c.Send("EXPIRE", item.Key, item.TTL)
+	if err != nil {
+		return err
+	}
 	r, err := c.Do("EXEC")
 	if err != nil {
 		return err
@@ -191,35 +206,35 @@ func (item *Item) encrypt(skey []byte) error {
 		return errors.New("empty item key for encyption")
 	}
 	if item.Content == "" {
-		return errors.New("empty plaintext")
+		return errors.New("empty plainText")
 	}
 	key := item.cipherKey(skey)
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil
 	}
-	plaintext := []byte(item.Content)
-	ciphertext := make([]byte, aes.BlockSize+len(plaintext))
-	iv := ciphertext[:aes.BlockSize]
+	plainText := []byte(item.Content)
+	cipherText := make([]byte, aes.BlockSize+len(plainText))
+	iv := cipherText[:aes.BlockSize]
 	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
 		return errors.New("iv random generation error")
 	}
 	stream := cipher.NewCFBEncrypter(block, iv)
-	stream.XORKeyStream(ciphertext[aes.BlockSize:], plaintext)
-	item.eContent = hex.EncodeToString(ciphertext)
+	stream.XORKeyStream(cipherText[aes.BlockSize:], plainText)
+	item.eContent = hex.EncodeToString(cipherText)
 	return nil
 }
 
 // decrypt decrypts user's data and send it to the item.
 func (item *Item) decrypt(skey []byte) error {
 	if item.eContent == "" {
-		return errors.New("empty ciphertext")
+		return errors.New("empty cipherText")
 	}
-	ciphertext, err := hex.DecodeString(item.eContent)
+	cipherText, err := hex.DecodeString(item.eContent)
 	if err != nil {
 		return err
 	}
-	if len(ciphertext) < aes.BlockSize {
+	if len(cipherText) < aes.BlockSize {
 		return errors.New("invalid cipher block length")
 	}
 	key := item.cipherKey(skey)
@@ -227,20 +242,29 @@ func (item *Item) decrypt(skey []byte) error {
 	if err != nil {
 		return errors.New("new cipher creation")
 	}
-	iv := ciphertext[:aes.BlockSize]
-	ciphertext = ciphertext[aes.BlockSize:]
+	iv := cipherText[:aes.BlockSize]
+	cipherText = cipherText[aes.BlockSize:]
 	stream := cipher.NewCFBDecrypter(block, iv)
-	stream.XORKeyStream(ciphertext, ciphertext)
+	stream.XORKeyStream(cipherText, cipherText)
 
-	item.Content = string(ciphertext)
+	item.Content = string(cipherText)
 	return nil
 }
 
 // Read gets data from database. Expected it is called after Exists and CheckPassword.
 func (item *Item) Read(c redis.Conn, skey []byte) error {
-	c.Send("MULTI")
-	c.Send("HGET", item.Key, fieldContent)
-	c.Send("HINCRBY", item.Key, fielTimes, -1)
+	err := c.Send("MULTI")
+	if err != nil {
+		return err
+	}
+	err = c.Send("HGET", item.Key, fieldContent)
+	if err != nil {
+		return err
+	}
+	err = c.Send("HINCRBY", item.Key, fieldTimes, -1)
+	if err != nil {
+		return err
+	}
 	r, err := c.Do("EXEC")
 	if err != nil {
 		return err
@@ -252,7 +276,7 @@ func (item *Item) Read(c redis.Conn, skey []byte) error {
 	if len(result) != 2 {
 		return errors.New("unexpected multi item result")
 	}
-	// check content convertion to string
+	// check content conversion to string
 	content, err := redis.String(result[0], nil)
 	if err != nil {
 		return fmt.Errorf("failed multi read 'content': %v", err)
@@ -341,7 +365,7 @@ func generateKey(c redis.Conn) (string, error) {
 	return key, nil
 }
 
-// getKey returns string radnom key.
+// getKey returns string random key.
 func getKey() (string, error) {
 	var b [KeyLen]byte
 	_, err := rand.Read(b[:])

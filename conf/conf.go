@@ -23,19 +23,6 @@ import (
 	"github.com/z0rr0/enigma/page"
 )
 
-//// rediscfg is configuration redis settings.
-//type rediscfg struct {
-//	Host     string `json:"host"`
-//	Port     uint   `json:"port"`
-//	Network  string `json:"network"`
-//	Db       int    `json:"db"`
-//	Timeout  int64  `json:"timeout"`
-//	Password string `json:"password"`
-//	IndleCon int    `json:"indlecon"`
-//	MaxCon   int    `json:"maxcon"`
-//	timeout  time.Duration
-//}
-
 // settings is app settings.
 type settings struct {
 	TTL   int `json:"ttl"`
@@ -142,7 +129,7 @@ func (c *Cfg) HandleTimeout() time.Duration {
 // loadTemplates loads HTML templates to memory.
 func (c *Cfg) loadTemplates() error {
 	if len(c.Templates) > 0 {
-		return errors.New("tempalate is already loaded")
+		return errors.New("templates are already loaded")
 	}
 	pages := map[string]string{
 		"index":   page.Index,
