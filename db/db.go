@@ -295,10 +295,25 @@ func (item *Item) Read(c redis.Conn, skey []byte) error {
 	}
 	// delete item from db if no times for new requests
 	if item.Times < 1 {
-		_, err = redis.Bool(c.Do("DEL", item.Key))
+		err = item.delete(c)
 		if err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// delete removes the item from db.
+func (item *Item) delete(c redis.Conn) error {
+	if item.Key == "" {
+		return errors.New("empty key for delete")
+	}
+	ok, err := redis.Bool(c.Do("DEL", item.Key))
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("item=%v is not deleted", item.Key)
 	}
 	return nil
 }

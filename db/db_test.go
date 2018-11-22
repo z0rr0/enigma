@@ -66,7 +66,7 @@ func TestGetDbPool(t *testing.T) {
 }
 
 func TestItem_New(t *testing.T) {
-	var (
+	const (
 		maxTTL   = 300
 		maxTimes = 10
 	)
@@ -112,23 +112,49 @@ func TestItem_New(t *testing.T) {
 	}
 }
 
-//func TestItem_Save(t *testing.T) {
-//	pool, err := readCfg()
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	conn := pool.Get()
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	defer func() {
-//		err = conn.Close()
-//		if err != nil {
-//			t.Errorf("close connection errror: %v", err)
-//		}
-//		err = pool.Close()
-//		if err != nil {
-//			t.Errorf("close pool errror: %v", err)
-//		}
-//	}()
-//}
+func TestItem_Save(t *testing.T) {
+	pool, err := readCfg()
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn := pool.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		err = conn.Close()
+		if err != nil {
+			t.Errorf("close connection errror: %v", err)
+		}
+		err = pool.Close()
+		if err != nil {
+			t.Errorf("close pool errror: %v", err)
+		}
+	}()
+
+	cases := []struct {
+		item *Item
+		skey []byte
+		ok   bool
+	}{
+		{item: &Item{Content: "test", TTL: 60, Times: 1}, ok: false},
+		{item: &Item{Content: "test", TTL: 60, Times: 1}, skey: cipherKey, ok: true},
+		{item: &Item{Content: "test", TTL: 60, Times: 1, Password: "abc"}, skey: cipherKey, ok: true},
+	}
+	for i, v := range cases {
+		err = v.item.Save(conn, v.skey)
+		if v.ok {
+			if err != nil {
+				t.Errorf("unexpected error case=%v: %v", i, err)
+			}
+			err = v.item.delete(conn)
+			if err != nil {
+				t.Errorf("failed delete item, case=%v: %v", i, err)
+			}
+		} else {
+			if err == nil {
+				t.Errorf("expected error case=%v", i)
+			}
+		}
+	}
+}
