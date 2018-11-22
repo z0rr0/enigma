@@ -2,6 +2,7 @@ package db
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/gomodule/redigo/redis"
 	"io/ioutil"
 	"net/http/httptest"
@@ -112,6 +113,26 @@ func TestItem_New(t *testing.T) {
 	}
 }
 
+func TestItem_GetURL(t *testing.T) {
+	key := "abc"
+	uri := "http://example.com"
+
+	r := httptest.NewRequest("POST", uri, nil)
+	r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	item := &Item{Content: "test", TTL: 60, Times: 1, Key: key}
+
+	expected := fmt.Sprintf("%v/%v", uri, key)
+	if u := item.GetURL(r, false); u.String() != expected {
+		t.Error("failed non-secure check", u.String())
+	}
+
+	uri = "https://example.com"
+	expected = fmt.Sprintf("%v/%v", uri, key)
+	if u := item.GetURL(r, true); u.String() != expected {
+		t.Error("failed secure check", u.String())
+	}
+}
+
 func TestItem_Save(t *testing.T) {
 	pool, err := readCfg()
 	if err != nil {
@@ -157,4 +178,55 @@ func TestItem_Save(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestItem_Exists(t *testing.T) {
+	pool, err := readCfg()
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn := pool.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		err = conn.Close()
+		if err != nil {
+			t.Errorf("close connection errror: %v", err)
+		}
+		err = pool.Close()
+		if err != nil {
+			t.Errorf("close pool errror: %v", err)
+		}
+	}()
+	item := &Item{Content: "test", TTL: 60, Times: 1}
+	err = item.Save(conn, cipherKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		err = item.delete(conn)
+		if err != nil {
+			t.Error("failed delete item")
+		}
+	}()
+
+	exists, err := item.Exists(conn)
+	if err != nil {
+		t.Error(err)
+	}
+	if !exists {
+		t.Error("item does not exist")
+	}
+	key := item.Key
+	item.Key = "abc"
+
+	exists, err = item.Exists(conn)
+	if err != nil {
+		t.Error(err)
+	}
+	if exists {
+		t.Error("item exists")
+	}
+	item.Key = key
 }
