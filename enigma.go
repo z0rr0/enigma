@@ -45,6 +45,14 @@ var (
 		log.Ldate|log.Ltime|log.Lshortfile)
 )
 
+func getVersion(w http.ResponseWriter) error  {
+	_, err := fmt.Fprintf(w,
+		"%v\nVersion: %v\nRevision: %v\nBuild date: %v\nGo version: %v\n",
+		Name, Version, Revision, BuildDate, GoVersion,
+	)
+	return err
+}
+
 func main() {
 	defer func() {
 		if r := recover(); r != nil {
@@ -93,9 +101,12 @@ func main() {
 				r.URL.String(),
 			)
 		}()
-		if r.URL.Path == "/" {
+		switch r.URL.Path {
+		case "/version":
+			code, err = http.StatusOK, getVersion(w)
+		case "/":
 			code, err = web.Index(w, r, cfg)
-		} else {
+		default:
 			code, err = web.Read(w, r, cfg)
 		}
 		if err != nil {
