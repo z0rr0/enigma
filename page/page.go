@@ -28,6 +28,9 @@ const (
 			password: <input type="password" name="password" placeholder="optional">
 			<input type="submit" value="Send">
 		</form>
+		<p>
+			<small><a href="https://github.com/z0rr0/enigma" title="github.com/z0rr0/enigma">github.com</a></small>
+		</p>
 	</body>
 </html>
 `

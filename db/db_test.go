@@ -228,5 +228,5 @@ func TestItem_Exists(t *testing.T) {
 	if exists {
 		t.Error("item exists")
 	}
-	item.Key = key
+	item.Key = key	
 }
