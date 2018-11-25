@@ -39,6 +39,7 @@ test: lint
 	# go tool cover -html=coverage.out
 	# go tool trace ratest.test trace.out
 	# go test -race -v -cover -coverprofile=coverage.out -trace trace.out $(MAIN)
+	# go test -v -race -benchmem -bench=. $(MAIN)/db
 
 docker: lint
 	bash $(CONTAINER)

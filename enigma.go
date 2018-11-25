@@ -45,7 +45,7 @@ var (
 		log.Ldate|log.Ltime|log.Lshortfile)
 )
 
-func getVersion(w http.ResponseWriter) error  {
+func getVersion(w http.ResponseWriter) error {
 	_, err := fmt.Fprintf(w,
 		"%v\nVersion: %v\nRevision: %v\nBuild date: %v\nGo version: %v\n",
 		Name, Version, Revision, BuildDate, GoVersion,

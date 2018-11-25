@@ -371,3 +371,76 @@ func TestItem_Read(t *testing.T) {
 		t.Errorf("item still exist")
 	}
 }
+
+func BenchmarkItem_Save(b *testing.B) {
+	pool, err := readCfg()
+	if err != nil {
+		b.Fatal(err)
+	}
+	conn := pool.Get()
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer func() {
+		err = conn.Close()
+		if err != nil {
+			b.Errorf("close connection errror: %v", err)
+		}
+		err = pool.Close()
+		if err != nil {
+			b.Errorf("close pool errror: %v", err)
+		}
+	}()
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		item := Item{Content: "test", TTL: 10, Times: 1}
+		err = item.Save(conn, cipherKey)
+		if err != nil {
+			b.Errorf("failed save: %v", err)
+		}
+		err = item.delete(conn)
+		if err != nil {
+			b.Errorf("failed delete: %v", err)
+		}
+	}
+}
+
+func BenchmarkItem_Read(b *testing.B) {
+	pool, err := readCfg()
+	if err != nil {
+		b.Fatal(err)
+	}
+	conn := pool.Get()
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer func() {
+		err = conn.Close()
+		if err != nil {
+			b.Errorf("close connection errror: %v", err)
+		}
+		err = pool.Close()
+		if err != nil {
+			b.Errorf("close pool errror: %v", err)
+		}
+	}()
+	item := Item{Content: "test", TTL: 10, Times: 1000000}
+	err = item.Save(conn, cipherKey)
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer func() {
+		err = item.delete(conn)
+		if err != nil {
+			b.Errorf("failed delete: %v", err)
+		}
+	}()
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		item.eContent, item.hPassword = "", ""
+		err = item.Read(conn, cipherKey)
+		if err != nil {
+			b.Errorf("failed read: %v", err)
+		}
+	}
+}
