@@ -3,12 +3,13 @@ package db
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/gomodule/redigo/redis"
 	"io/ioutil"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/gomodule/redigo/redis"
 )
 
 const (
@@ -48,6 +49,34 @@ func readCfg() (*redis.Pool, error) {
 }
 
 func TestGetDbPool(t *testing.T) {
+	jsonData, err := ioutil.ReadFile(testConfigName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := &testCfg{}
+	err = json.Unmarshal(jsonData, c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Redis.Db = testDbIndex
+	c.Redis.Timeout = -1
+	_, err = GetDbPool(c.Redis)
+	if err == nil {
+		t.Errorf("expected error")
+	}
+	c.Redis.Timeout = 10
+	c.Redis.IndleCon = 0
+	_, err = GetDbPool(c.Redis)
+	if err == nil {
+		t.Errorf("expected error")
+	}
+	c.Redis.IndleCon = 1
+	c.Redis.Db = -1
+	_, err = GetDbPool(c.Redis)
+	if err == nil {
+		t.Errorf("expected error")
+	}
+
 	pool, err := readCfg()
 	if err != nil {
 		t.Fatal(err)
@@ -228,5 +257,117 @@ func TestItem_Exists(t *testing.T) {
 	if exists {
 		t.Error("item exists")
 	}
-	item.Key = key	
+	item.Key = key
+}
+
+func TestItem_CheckPassword(t *testing.T) {
+	const password = "abc"
+	pool, err := readCfg()
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn := pool.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		err = conn.Close()
+		if err != nil {
+			t.Errorf("close connection errror: %v", err)
+		}
+		err = pool.Close()
+		if err != nil {
+			t.Errorf("close pool errror: %v", err)
+		}
+	}()
+	item := &Item{Content: "test", TTL: 60, Times: 1, Password: password}
+	err = item.Save(conn, cipherKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		err = item.delete(conn)
+		if err != nil {
+			t.Error("failed delete item")
+		}
+	}()
+	ok, err := item.CheckPassword(conn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Error("failed password check")
+	}
+	item.Password, item.hPassword = "bad", ""
+	ok, err = item.CheckPassword(conn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok {
+		t.Error("unexpected success password check")
+	}
+}
+
+func TestItem_Read(t *testing.T) {
+	pool, err := readCfg()
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn := pool.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		err = conn.Close()
+		if err != nil {
+			t.Errorf("close connection errror: %v", err)
+		}
+		err = pool.Close()
+		if err != nil {
+			t.Errorf("close pool errror: %v", err)
+		}
+	}()
+	item := &Item{Content: "test", TTL: 60, Times: 2}
+	err = item.Save(conn, cipherKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key := item.Key
+	// read with failed key
+	item.Key = "abc"
+	err = item.Read(conn, cipherKey)
+	if err == nil {
+		t.Error("unexpected success read")
+	}
+	item.Key = key
+	// success read
+	err = item.Read(conn, cipherKey)
+	if err != nil {
+		t.Errorf("failed read; %v", err)
+	}
+	if times := item.Times; times != 1 {
+		t.Errorf("invalid times value: %v", times)
+	}
+	ok, err := item.Exists(conn)
+	if err != nil {
+		t.Error("failed check existing")
+	}
+	if !ok {
+		t.Errorf("item doesn't exist")
+	}
+	// read and delete
+	err = item.Read(conn, cipherKey)
+	if err != nil {
+		t.Errorf("failed read; %v", err)
+	}
+	if times := item.Times; times != 0 {
+		t.Errorf("invalid times value: %v", times)
+	}
+	ok, err = item.Exists(conn)
+	if err != nil {
+		t.Error("failed check existing")
+	}
+	if ok {
+		t.Errorf("item still exist")
+	}
 }
