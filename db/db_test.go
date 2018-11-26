@@ -76,7 +76,7 @@ func TestGetDbPool(t *testing.T) {
 	if err == nil {
 		t.Errorf("expected error")
 	}
-
+	// success case
 	pool, err := readCfg()
 	if err != nil {
 		t.Fatal(err)
@@ -84,6 +84,9 @@ func TestGetDbPool(t *testing.T) {
 	conn := pool.Get()
 	if err != nil {
 		t.Fatal(err)
+	}
+	if !IsOk(conn) {
+		t.Error("db check is not ok")
 	}
 	err = conn.Close()
 	if err != nil {

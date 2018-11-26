@@ -108,6 +108,15 @@ func (c *Cfg) RedisAddr() string {
 	return net.JoinHostPort(c.Host, fmt.Sprint(c.Port))
 }
 
+// IsOk checks db is available using redis PING command.
+func IsOk(conn redis.Conn) bool {
+	resp, err := redis.String(conn.Do("PING"))
+	if err != nil {
+		return false
+	}
+	return resp == "PONG"
+}
+
 // Save saves the item to database.
 func (item *Item) Save(c redis.Conn, skey []byte) error {
 	key, err := generateKey(c)

@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/z0rr0/enigma/conf"
+	"github.com/z0rr0/enigma/db"
 	"github.com/z0rr0/enigma/web"
 )
 
@@ -45,10 +46,17 @@ var (
 		log.Ldate|log.Ltime|log.Lshortfile)
 )
 
-func getVersion(w http.ResponseWriter) error {
+func getVersion(w http.ResponseWriter, cfg *conf.Cfg) error {
+	conn := cfg.Connection()
+	defer func() {
+		err := conn.Close()
+		if err != nil {
+			loggerError.Printf("failed connection close: %v\n", err)
+		}
+	}()
 	_, err := fmt.Fprintf(w,
-		"%v\nVersion: %v\nRevision: %v\nBuild date: %v\nGo version: %v\n",
-		Name, Version, Revision, BuildDate, GoVersion,
+		"%v\nVersion: %v\nRevision: %v\nBuild date: %v\nGo version: %v\nDb is OK: %v\n",
+		Name, Version, Revision, BuildDate, GoVersion, db.IsOk(conn),
 	)
 	return err
 }
@@ -103,7 +111,7 @@ func main() {
 		}()
 		switch r.URL.Path {
 		case "/version":
-			code, err = http.StatusOK, getVersion(w)
+			code, err = http.StatusOK, getVersion(w, cfg)
 		case "/":
 			code, err = web.Index(w, r, cfg)
 		default:
