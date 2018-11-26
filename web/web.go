@@ -10,6 +10,7 @@ package web
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -39,10 +40,12 @@ type CheckPassword struct {
 }
 
 // Error sets error page. It returns code value.
-func Error(w http.ResponseWriter, cfg *conf.Cfg, code int) int {
+func Error(w io.Writer, cfg *conf.Cfg, code int) int {
 	var title, msg string
-	w.WriteHeader(code)
-
+	httpWriter, ok := w.(http.ResponseWriter)
+	if ok {
+		httpWriter.WriteHeader(code)
+	}
 	tpl := cfg.Templates["error"]
 	switch code {
 	case http.StatusNotFound:
@@ -62,7 +65,7 @@ func Error(w http.ResponseWriter, cfg *conf.Cfg, code int) int {
 }
 
 // create handles new item creation.
-func create(w http.ResponseWriter, r *http.Request, cfg *conf.Cfg) (int, error) {
+func create(w io.Writer, r *http.Request, cfg *conf.Cfg) (int, error) {
 	item, err := db.New(r, cfg.Settings.TTL, cfg.Settings.Times)
 	if err != nil {
 		return Error(w, cfg, http.StatusBadRequest), err
@@ -87,7 +90,7 @@ func create(w http.ResponseWriter, r *http.Request, cfg *conf.Cfg) (int, error) 
 }
 
 // get user's data.
-func get(w http.ResponseWriter, r *http.Request, item *db.Item, c redis.Conn, cfg *conf.Cfg) (int, error) {
+func get(w io.Writer, r *http.Request, item *db.Item, c redis.Conn, cfg *conf.Cfg) (int, error) {
 	item.Password = r.PostFormValue("password")
 	ok, err := item.CheckPassword(c)
 	if err != nil {
@@ -115,7 +118,7 @@ func get(w http.ResponseWriter, r *http.Request, item *db.Item, c redis.Conn, cf
 
 // Index is a base HTTP handler. POST request creates new item.
 // Return value is HTTP status code.
-func Index(w http.ResponseWriter, r *http.Request, cfg *conf.Cfg) (int, error) {
+func Index(w io.Writer, r *http.Request, cfg *conf.Cfg) (int, error) {
 	if r.Method == "POST" {
 		return create(w, r, cfg)
 	}
@@ -128,7 +131,7 @@ func Index(w http.ResponseWriter, r *http.Request, cfg *conf.Cfg) (int, error) {
 }
 
 // Read returns a page with decrypted user's data.
-func Read(w http.ResponseWriter, r *http.Request, cfg *conf.Cfg) (int, error) {
+func Read(w io.Writer, r *http.Request, cfg *conf.Cfg) (int, error) {
 	key := strings.Trim(r.RequestURI, "/ ")
 	if len(key) != db.KeyLen*2 {
 		return Error(w, cfg, http.StatusNotFound), nil
