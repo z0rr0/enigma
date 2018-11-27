@@ -317,14 +317,7 @@ func (item *Item) delete(c redis.Conn) error {
 	if item.Key == "" {
 		return errors.New("empty key for delete")
 	}
-	ok, err := redis.Bool(c.Do("DEL", item.Key))
-	if err != nil {
-		return err
-	}
-	if !ok {
-		return fmt.Errorf("item=%v is not deleted", item.Key)
-	}
-	return nil
+	return Delete(item.Key, c)
 }
 
 // Exists returns true if item exists in database.
@@ -445,4 +438,16 @@ func New(r *http.Request, ttl, times int) (*Item, error) {
 		Password: password,
 	}
 	return item, nil
+}
+
+// Delete removes data strunc by the key.
+func Delete(key string, c redis.Conn) error {
+	ok, err := redis.Bool(c.Do("DEL", key))
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("item=%v is not deleted", key)
+	}
+	return nil
 }

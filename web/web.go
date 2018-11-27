@@ -51,7 +51,7 @@ func Error(w io.Writer, cfg *conf.Cfg, code int) int {
 	case http.StatusNotFound:
 		title, msg = "Not found", "Page not found"
 	case http.StatusBadRequest:
-		title, msg = "Error", "Bad request"
+		title, msg = "Error", "Bad createData"
 	default:
 		title, msg = "Error", "Sorry, it is an error"
 	}
@@ -98,11 +98,19 @@ func get(w io.Writer, r *http.Request, item *db.Item, c redis.Conn, cfg *conf.Cf
 	}
 	if !ok {
 		tpl := cfg.Templates["read"]
+
+		httpWriter, ok := w.(http.ResponseWriter)
+		if !ok {
+			return Error(w, cfg, http.StatusInternalServerError), err
+		}
+		code := http.StatusBadRequest
+		httpWriter.WriteHeader(code)
+
 		err = tpl.Execute(w, CheckPassword{true, "Failed password"})
 		if err != nil {
 			return Error(w, cfg, http.StatusInternalServerError), err
 		}
-		return http.StatusOK, nil
+		return code, nil
 	}
 	err = item.Read(c, cfg.CipherKey)
 	if err != nil {
@@ -116,7 +124,7 @@ func get(w io.Writer, r *http.Request, item *db.Item, c redis.Conn, cfg *conf.Cf
 	return http.StatusOK, nil
 }
 
-// Index is a base HTTP handler. POST request creates new item.
+// Index is a base HTTP handler. POST createData creates new item.
 // Return value is HTTP status code.
 func Index(w io.Writer, r *http.Request, cfg *conf.Cfg) (int, error) {
 	if r.Method == "POST" {
