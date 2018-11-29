@@ -28,6 +28,9 @@ const (
 	// KeyLen is a number of bytes for random db key.
 	KeyLen = 64
 
+	// maxCollisions a number of allowed attempts to generate a key without collisions
+	maxCollisions = 16
+
 	fieldContent  = "content"
 	fieldPassword = "password"
 	fieldTimes    = "times"
@@ -365,7 +368,8 @@ func generateKey(c redis.Conn) (string, error) {
 		key string
 		err error
 	)
-	for {
+	// loop to exclude collisions
+	for i := 0; i < maxCollisions; i++ {
 		key, err = getKey()
 		if err != nil {
 			return "", err
@@ -376,10 +380,10 @@ func generateKey(c redis.Conn) (string, error) {
 			return "", err
 		}
 		if !exists {
-			break
+			return key, nil
 		}
 	}
-	return key, nil
+	return "", fmt.Errorf("can not get an unique key [%v] after %v attemps", KeyLen, maxCollisions)
 }
 
 // getKey returns string random key.

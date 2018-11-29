@@ -33,14 +33,14 @@ lint: install
 
 test: lint
 	@-cp $(GOPATH)/$(SOURCEDIR)/$(CONFIG) /tmp/
-#	go test -race -v -cover -coverprofile=page_coverage.out -trace page_trace.out $(MAIN)/page
-#	go test -race -v -cover -coverprofile=conf_coverage.out -trace conf_trace.out $(MAIN)/conf
-#	go test -race -v -cover -coverprofile=db_coverage.out -trace db_trace.out $(MAIN)/db
+	go test -race -v -cover -coverprofile=conf_coverage.out -trace conf_trace.out $(MAIN)/conf
+	go test -race -v -cover -coverprofile=db_coverage.out -trace db_trace.out $(MAIN)/db
+	go test -race -v -cover -coverprofile=page_coverage.out -trace page_trace.out $(MAIN)/page
 	go test -race -v -cover -coverprofile=web_coverage.out -trace web_trace.out $(MAIN)/web
 	# go tool cover -html=coverage.out
 	# go tool trace ratest.test trace.out
 	# go test -race -v -cover -coverprofile=coverage.out -trace trace.out $(MAIN)
-	# go test -v -race -benchmem -bench=. $(MAIN)/db
+	# go test -v -race -benchmem -bench=. $(MAIN)/<NAME>
 
 docker: lint
 	bash $(CONTAINER)

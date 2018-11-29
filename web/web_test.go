@@ -277,3 +277,92 @@ func TestRead(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkIndex(b *testing.B) {
+	cfg, err := conf.New(testConfigName)
+	if err != nil {
+		b.Fatal(err)
+	}
+	conn := cfg.Connection()
+	defer func() {
+		err := conn.Close()
+		if err != nil {
+			b.Errorf("failed close connection: %v", err)
+		}
+		err = cfg.Close()
+		if err != nil {
+			b.Errorf("close error: %v", err)
+		}
+	}()
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		w := httptest.NewRecorder()
+		params := url.Values{}
+		params.Set("content", "test")
+		params.Set("ttl", "30")
+		params.Set("times", "1")
+		params.Set("password", "abc")
+
+		r := httptest.NewRequest("POST", "/", strings.NewReader(params.Encode()))
+		r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+		code, err := Index(w, r, cfg)
+		if err != nil {
+			b.Error(err)
+		}
+		if code != http.StatusOK {
+			b.Errorf("faield code: %v", code)
+		}
+	}
+}
+
+func BenchmarkRead(b *testing.B) {
+	const password = "abc"
+	cfg, err := conf.New(testConfigName)
+	if err != nil {
+		b.Fatal(err)
+	}
+	cipherKey, err := hex.DecodeString(cfg.Key)
+	if err != nil {
+		b.Fatal(err)
+	}
+	conn := cfg.Connection()
+	defer func() {
+		err := conn.Close()
+		if err != nil {
+			b.Errorf("failed close connection: %v", err)
+		}
+		err = cfg.Close()
+		if err != nil {
+			b.Errorf("close error: %v", err)
+		}
+	}()
+	item := &db.Item{Content: "test", TTL: 30, Times: 1000000, Password: password}
+	defer func() {
+		err = db.Delete(item.Key, conn)
+		if err != nil {
+			b.Errorf("failed delete item: %v", err)
+		}
+	}()
+	err = item.Save(conn, cipherKey)
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		params := url.Values{}
+		params.Set("password", password)
+
+		r := httptest.NewRequest("POST", "/"+item.Key, strings.NewReader(params.Encode()))
+		r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+		w := httptest.NewRecorder()
+		code, err := Read(w, r, cfg)
+		if err != nil {
+			b.Error(err)
+		}
+		if code != http.StatusOK {
+			b.Errorf("faield code: %v", code)
+		}
+	}
+}
