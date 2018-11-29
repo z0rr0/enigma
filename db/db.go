@@ -288,18 +288,24 @@ func (item *Item) Read(c redis.Conn, skey []byte) error {
 	if len(result) != 2 {
 		return errors.New("unexpected multi item result")
 	}
+	// check increment result
+	times, err := redis.Int(result[1], nil)
+	if err != nil {
+		return fmt.Errorf("failed multi read 'times': %v", err)
+	}
+	if times < 0 {
+		// it's possible if some concurrent request read a same item before,
+		// but still didn't delete it due to condition below (times < 1)
+		// TODO: replace 'not found'
+		return errors.New("not found")
+	}
+	item.Times = times
 	// check content conversion to string
 	content, err := redis.String(result[0], nil)
 	if err != nil {
 		return fmt.Errorf("failed multi read 'content': %v", err)
 	}
 	item.eContent = content
-	// check increment result
-	times, err := redis.Int(result[1], nil)
-	if err != nil {
-		return fmt.Errorf("failed multi read 'times': %v", err)
-	}
-	item.Times = times
 
 	err = item.decrypt(skey)
 	if err != nil {
