@@ -112,9 +112,12 @@ func get(w io.Writer, r *http.Request, item *db.Item, c redis.Conn, cfg *conf.Cf
 		}
 		return code, nil
 	}
-	err = item.Read(c, cfg.CipherKey)
+	exists, err := item.Read(c, cfg.CipherKey)
 	if err != nil {
 		return Error(w, cfg, http.StatusInternalServerError), err
+	}
+	if !exists {
+		return Error(w, cfg, http.StatusNotFound), nil
 	}
 	tpl := cfg.Templates["content"]
 	err = tpl.Execute(w, map[string]string{"Content": item.Content})

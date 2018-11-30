@@ -41,6 +41,7 @@ func readCfg() (*redis.Pool, error) {
 		return nil, err
 	}
 	c.Redis.Db = testDbIndex
+	c.Redis.MaxCon = 255
 	pool, err := GetDbPool(c.Redis)
 	if err != nil {
 		return nil, err
@@ -82,9 +83,6 @@ func TestGetDbPool(t *testing.T) {
 		t.Fatal(err)
 	}
 	conn := pool.Get()
-	if err != nil {
-		t.Fatal(err)
-	}
 	if !IsOk(conn) {
 		t.Error("db check is not ok")
 	}
@@ -171,9 +169,6 @@ func TestItem_Save(t *testing.T) {
 		t.Fatal(err)
 	}
 	conn := pool.Get()
-	if err != nil {
-		t.Fatal(err)
-	}
 	defer func() {
 		err = conn.Close()
 		if err != nil {
@@ -200,7 +195,7 @@ func TestItem_Save(t *testing.T) {
 			if err != nil {
 				t.Errorf("unexpected error case=%v: %v", i, err)
 			}
-			err = v.item.delete(conn)
+			_, err = v.item.delete(conn)
 			if err != nil {
 				t.Errorf("failed delete item, case=%v: %v", i, err)
 			}
@@ -218,9 +213,6 @@ func TestItem_Exists(t *testing.T) {
 		t.Fatal(err)
 	}
 	conn := pool.Get()
-	if err != nil {
-		t.Fatal(err)
-	}
 	defer func() {
 		err = conn.Close()
 		if err != nil {
@@ -237,7 +229,7 @@ func TestItem_Exists(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		err = item.delete(conn)
+		_, err = item.delete(conn)
 		if err != nil {
 			t.Error("failed delete item")
 		}
@@ -270,9 +262,6 @@ func TestItem_CheckPassword(t *testing.T) {
 		t.Fatal(err)
 	}
 	conn := pool.Get()
-	if err != nil {
-		t.Fatal(err)
-	}
 	defer func() {
 		err = conn.Close()
 		if err != nil {
@@ -289,7 +278,7 @@ func TestItem_CheckPassword(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		err = item.delete(conn)
+		_, err = item.delete(conn)
 		if err != nil {
 			t.Error("failed delete item")
 		}
@@ -317,9 +306,6 @@ func TestItem_Read(t *testing.T) {
 		t.Fatal(err)
 	}
 	conn := pool.Get()
-	if err != nil {
-		t.Fatal(err)
-	}
 	defer func() {
 		err = conn.Close()
 		if err != nil {
@@ -338,14 +324,14 @@ func TestItem_Read(t *testing.T) {
 	key := item.Key
 	// read with failed key
 	item.Key = "abc"
-	err = item.Read(conn, cipherKey)
-	if err == nil {
+	exists, err := item.Read(conn, cipherKey)
+	if exists {
 		t.Error("unexpected success read")
 	}
 	item.Key = key
 	// success read
-	err = item.Read(conn, cipherKey)
-	if err != nil {
+	exists, err = item.Read(conn, cipherKey)
+	if !exists || (err != nil) {
 		t.Errorf("failed read; %v", err)
 	}
 	if times := item.Times; times != 1 {
@@ -359,8 +345,8 @@ func TestItem_Read(t *testing.T) {
 		t.Errorf("item doesn't exist")
 	}
 	// read and delete
-	err = item.Read(conn, cipherKey)
-	if err != nil {
+	exists, err = item.Read(conn, cipherKey)
+	if !exists || (err != nil) {
 		t.Errorf("failed read; %v", err)
 	}
 	if times := item.Times; times != 0 {
@@ -375,15 +361,70 @@ func TestItem_Read(t *testing.T) {
 	}
 }
 
+func TestItem_ReadConcurrent(t *testing.T) {
+	const (
+		times   = 256
+		workers = 16
+	)
+	pool, err := readCfg()
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn := pool.Get()
+	defer func() {
+		err = conn.Close()
+		if err != nil {
+			t.Errorf("close connection errror: %v", err)
+		}
+		err = pool.Close()
+		if err != nil {
+			t.Errorf("close pool errror: %v", err)
+		}
+	}()
+	item := &Item{Content: "test", TTL: 60, Times: times}
+	err = item.Save(conn, cipherKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, content := item.Key, item.Content
+	ch := make(chan int)
+	for i := 0; i < workers; i++ {
+		go func(n int) {
+			x := &Item{Key: key, Content: content}
+			for j := 0; j < times; j++ {
+				c := pool.Get()
+				exists, err := x.Read(c, cipherKey)
+				if err != nil {
+					t.Errorf("unexpected error read, worker=%v: %v", n, err)
+				}
+				if exists {
+					ch <- 1
+				} else {
+					ch <- 0
+				}
+				err = c.Close()
+				if err != nil {
+					t.Errorf("close connection errror, worker=%v, attempt=%v: %v", n, j, err)
+				}
+			}
+		}(i)
+	}
+	s := 0
+	for i := 0; i < workers*times; i++ {
+		s += <-ch
+	}
+	close(ch)
+	if s != times {
+		t.Errorf("failed sum=%v", s)
+	}
+}
+
 func BenchmarkItem_Save(b *testing.B) {
 	pool, err := readCfg()
 	if err != nil {
 		b.Fatal(err)
 	}
 	conn := pool.Get()
-	if err != nil {
-		b.Fatal(err)
-	}
 	defer func() {
 		err = conn.Close()
 		if err != nil {
@@ -401,7 +442,7 @@ func BenchmarkItem_Save(b *testing.B) {
 		if err != nil {
 			b.Errorf("failed save: %v", err)
 		}
-		err = item.delete(conn)
+		_, err = item.delete(conn)
 		if err != nil {
 			b.Errorf("failed delete: %v", err)
 		}
@@ -414,9 +455,6 @@ func BenchmarkItem_Read(b *testing.B) {
 		b.Fatal(err)
 	}
 	conn := pool.Get()
-	if err != nil {
-		b.Fatal(err)
-	}
 	defer func() {
 		err = conn.Close()
 		if err != nil {
@@ -433,7 +471,7 @@ func BenchmarkItem_Read(b *testing.B) {
 		b.Fatal(err)
 	}
 	defer func() {
-		err = item.delete(conn)
+		_, err = item.delete(conn)
 		if err != nil {
 			b.Errorf("failed delete: %v", err)
 		}
@@ -441,8 +479,8 @@ func BenchmarkItem_Read(b *testing.B) {
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		item.eContent, item.hPassword = "", ""
-		err = item.Read(conn, cipherKey)
-		if err != nil {
+		exists, err := item.Read(conn, cipherKey)
+		if !exists || (err != nil) {
 			b.Errorf("failed read: %v", err)
 		}
 	}

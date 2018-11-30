@@ -142,7 +142,7 @@ func TestIndex(t *testing.T) {
 							t.Errorf("failed result check lenght: %v", l)
 						} else {
 							key := finds[2]
-							err = db.Delete(key, conn)
+							_, err = db.Delete(key, conn)
 							if err != nil {
 								t.Errorf("failed delete item case=%v: %v", i, err)
 							}
@@ -254,7 +254,7 @@ func TestRead(t *testing.T) {
 						}
 					}
 					if v.Item.Times > 1 {
-						err = db.Delete(v.Item.Key, conn)
+						_, err = db.Delete(v.Item.Key, conn)
 						if err != nil {
 							t.Errorf("failed delete item case=%v: %v", i, err)
 						}
@@ -268,7 +268,7 @@ func TestRead(t *testing.T) {
 						}
 					}
 				} else if v.Item != nil {
-					err = db.Delete(v.Item.Key, conn)
+					_, err = db.Delete(v.Item.Key, conn)
 					if err != nil {
 						t.Errorf("failed delete item case=%v: %v", i, err)
 					}
@@ -339,7 +339,7 @@ func BenchmarkRead(b *testing.B) {
 	}()
 	item := &db.Item{Content: "test", TTL: 30, Times: 1000000, Password: password}
 	defer func() {
-		err = db.Delete(item.Key, conn)
+		_, err = db.Delete(item.Key, conn)
 		if err != nil {
 			b.Errorf("failed delete item: %v", err)
 		}

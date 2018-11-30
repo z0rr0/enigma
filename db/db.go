@@ -264,67 +264,48 @@ func (item *Item) decrypt(skey []byte) error {
 }
 
 // Read gets data from database. Expected it is called after Exists and CheckPassword.
-func (item *Item) Read(c redis.Conn, skey []byte) error {
-	err := c.Send("MULTI")
+func (item *Item) Read(c redis.Conn, skey []byte) (bool, error) {
+	if item.Key == "" {
+		return false, nil
+	}
+	// redis increment is atomic operation
+	times, err := redis.Int(c.Do("HINCRBY", item.Key, fieldTimes, -1))
 	if err != nil {
-		return err
-	}
-	err = c.Send("HGET", item.Key, fieldContent)
-	if err != nil {
-		return err
-	}
-	err = c.Send("HINCRBY", item.Key, fieldTimes, -1)
-	if err != nil {
-		return err
-	}
-	r, err := c.Do("EXEC")
-	if err != nil {
-		return err
-	}
-	result, ok := r.([]interface{})
-	if !ok {
-		return errors.New("failed multi read result")
-	}
-	if len(result) != 2 {
-		return errors.New("unexpected multi item result")
-	}
-	// check increment result
-	times, err := redis.Int(result[1], nil)
-	if err != nil {
-		return fmt.Errorf("failed multi read 'times': %v", err)
+		return false, err
 	}
 	if times < 0 {
-		// it's possible if some concurrent request read a same item before,
-		// but still didn't delete it due to condition below (times < 1)
-		// TODO: replace 'not found'
-		return errors.New("not found")
+		// probably item was read before by another concurrent request
+		//_, err = item.delete(c) // can't still delete possibly created item
+		return false, err
+	}
+	content, err := redis.String(c.Do("HGET", item.Key, fieldContent))
+	if err != nil {
+		return false, err
+	}
+	if times == 0 {
+		// no new attempts for read
+		ok, err := item.delete(c)
+		if err != nil {
+			return false, err
+		}
+		if !ok {
+			return false, fmt.Errorf("item=%v was not deleted", item.Key)
+		}
 	}
 	item.Times = times
-	// check content conversion to string
-	content, err := redis.String(result[0], nil)
-	if err != nil {
-		return fmt.Errorf("failed multi read 'content': %v", err)
-	}
 	item.eContent = content
 
 	err = item.decrypt(skey)
 	if err != nil {
-		return err
+		return false, err
 	}
-	// delete item from db if no times for new requests
-	if item.Times < 1 {
-		err = item.delete(c)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return true, nil
 }
 
 // delete removes the item from db.
-func (item *Item) delete(c redis.Conn) error {
+func (item *Item) delete(c redis.Conn) (bool, error) {
 	if item.Key == "" {
-		return errors.New("empty key for delete")
+		return false, errors.New("empty key for delete")
 	}
 	return Delete(item.Key, c)
 }
@@ -450,14 +431,7 @@ func New(r *http.Request, ttl, times int) (*Item, error) {
 	return item, nil
 }
 
-// Delete removes data strunc by the key.
-func Delete(key string, c redis.Conn) error {
-	ok, err := redis.Bool(c.Do("DEL", key))
-	if err != nil {
-		return err
-	}
-	if !ok {
-		return fmt.Errorf("item=%v is not deleted", key)
-	}
-	return nil
+// Delete removes data struct by the key.
+func Delete(key string, c redis.Conn) (bool, error) {
+	return redis.Bool(c.Do("DEL", key))
 }
