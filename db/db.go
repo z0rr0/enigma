@@ -268,15 +268,24 @@ func (item *Item) Read(c redis.Conn, skey []byte) (bool, error) {
 	if item.Key == "" {
 		return false, nil
 	}
-	// redis increment is atomic operation
+	// redis increment is an atomic operation
 	times, err := redis.Int(c.Do("HINCRBY", item.Key, fieldTimes, -1))
 	if err != nil {
 		return false, err
 	}
 	if times < 0 {
-		// probably item was read before by another concurrent request
-		//_, err = item.delete(c) // can't still delete possibly created item
-		return false, err
+		// probably concurrent request is reading the item at the same time
+		ok, err := item.Exists(c)
+		if err != nil {
+			return false, err
+		}
+		if !ok {
+			// one doesn't exist but HINCRBY called after deleting creates a new record
+			_, err = item.delete(c)
+			return false, err
+		}
+		// item will be deleted by the first concurrent reading
+		return false, nil
 	}
 	content, err := redis.String(c.Do("HGET", item.Key, fieldContent))
 	if err != nil {

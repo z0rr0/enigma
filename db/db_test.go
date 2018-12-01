@@ -195,9 +195,12 @@ func TestItem_Save(t *testing.T) {
 			if err != nil {
 				t.Errorf("unexpected error case=%v: %v", i, err)
 			}
-			_, err = v.item.delete(conn)
+			ok, err := v.item.delete(conn)
 			if err != nil {
 				t.Errorf("failed delete item, case=%v: %v", i, err)
+			}
+			if !ok {
+				t.Error("item was not deleted")
 			}
 		} else {
 			if err == nil {
@@ -229,9 +232,12 @@ func TestItem_Exists(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		_, err = item.delete(conn)
+		ok, err := item.delete(conn)
 		if err != nil {
 			t.Error("failed delete item")
+		}
+		if !ok {
+			t.Error("item was not deleted")
 		}
 	}()
 
@@ -278,9 +284,12 @@ func TestItem_CheckPassword(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		_, err = item.delete(conn)
+		ok, err := item.delete(conn)
 		if err != nil {
 			t.Error("failed delete item")
+		}
+		if !ok {
+			t.Error("item was not deleted")
 		}
 	}()
 	ok, err := item.CheckPassword(conn)
@@ -363,8 +372,8 @@ func TestItem_Read(t *testing.T) {
 
 func TestItem_ReadConcurrent(t *testing.T) {
 	const (
-		times   = 256
-		workers = 16
+		times   = 128
+		workers = 8
 	)
 	pool, err := readCfg()
 	if err != nil {
@@ -442,9 +451,12 @@ func BenchmarkItem_Save(b *testing.B) {
 		if err != nil {
 			b.Errorf("failed save: %v", err)
 		}
-		_, err = item.delete(conn)
+		ok, err := item.delete(conn)
 		if err != nil {
 			b.Errorf("failed delete: %v", err)
+		}
+		if !ok {
+			b.Error("item was not deleted")
 		}
 	}
 }
@@ -471,9 +483,12 @@ func BenchmarkItem_Read(b *testing.B) {
 		b.Fatal(err)
 	}
 	defer func() {
-		_, err = item.delete(conn)
+		ok, err := item.delete(conn)
 		if err != nil {
 			b.Errorf("failed delete: %v", err)
+		}
+		if !ok {
+			b.Error("item was not deleted")
 		}
 	}()
 	b.ResetTimer()
