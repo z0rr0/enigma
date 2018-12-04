@@ -26,7 +26,7 @@ const (
 			</select>
 			times: <input type="number" name="times" min="1" max="1000" value="1" required>
 			password: <input type="password" name="password" placeholder="optional">
-			<input type="submit" value="Send">
+			<input type="submit" value="Submit">
 		</form>
 		<p>
 			<small><a href="https://github.com/z0rr0/enigma" title="github.com/z0rr0/enigma">github.com</a></small>
@@ -74,7 +74,7 @@ const (
 		<h1><a href="/" title="Enigma">Enigma</a></h1>
 		<form method="POST">
 			Password: <input type="password" name="password" placeholder="optional">
-			<input type="submit" value="Get">
+			<input type="submit" value="Submit">
 		</form>
 		{{if .Err}}<i>{{.Msg}}</i>{{end}}
 	</body>
